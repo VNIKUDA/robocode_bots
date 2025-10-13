@@ -111,9 +111,11 @@ def joinStudentToGroup(student_id: int, group_id: int):
 def deleteStudent(student_username: str):
     db = get_db()
 
-    student = 
+    student = db.query(models.Student).filter(models.Student.username == student_username).first()
 
-    db.delete()
+    db.delete(student)
+    db.commit()
+    
 
 def leaveStudentFromGroup(student_id: int, group_id: int):
     db = get_db()
