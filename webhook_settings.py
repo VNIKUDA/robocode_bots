@@ -1,0 +1,35 @@
+import asyncio
+from dotenv import load_dotenv
+from os import getenv
+
+load_dotenv()
+
+from aiogram import Bot
+from aiogram.client.session.aiohttp import AiohttpSession
+
+TEACHER_BOT_TOKEN = getenv("TEACHER_BOT_TOKEN")
+STUDENT_BOT_TOKEN = getenv("STUDENT_BOT_TOKEN")
+PYTHONANYWHERE_ACCOUNT = getenv("PYTHONANYWHERE_ACCOUNT")
+WEBHOOK_SECRET = getenv("WEBHOOK_SECRET")
+
+TEACHER_WEBHOOK = "/teacher"
+TEACHER_URL = f"https://{PYTHONANYWHERE_ACCOUNT}.pythonanywhere.com{TEACHER_WEBHOOK}"
+
+STUDENT_WEBHOOK = "/student"
+STUDENT_URL = f"https://{PYTHONANYWHERE_ACCOUNT}.pythonanywhere.com{STUDENT_WEBHOOK}"
+
+async def setupWebhook():
+    print("Setting webhook")
+
+    session = AiohttpSession(proxy="http://proxy.server:3128")
+
+    teacher_bot = Bot(token=TEACHER_BOT_TOKEN, session=session)    
+    student_bot = Bot(token=STUDENT_BOT_TOKEN, session=session)
+
+    await teacher_bot.set_webhook(TEACHER_URL, secret_token=WEBHOOK_SECRET)
+    await student_bot.set_webhook(STUDENT_URL, secret_token=WEBHOOK_SECRET)
+
+    await session.close()
+
+# if __name__ == "__main__":
+#     asyncio.run(setup())

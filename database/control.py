@@ -115,7 +115,33 @@ def deleteStudent(student_username: str):
 
     db.delete(student)
     db.commit()
-    
+
+
+def deleteTeacher(teacher_username: str):
+    db = get_db()
+
+    teacher = db.query(models.Teacher).filter(models.Teacher.username == teacher_username).first()
+
+    db.delete(teacher)
+    db.commit()
+
+
+def deleteCourse(course_name: str):
+    db = get_db()
+
+    course = db.query(models.Course).filter(models.Course.name == course_name).first()
+
+    db.delete(course)
+    db.commit()
+
+
+def deleteGroup(group_id: int):
+    db = get_db()
+
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+
+    db.delete(group)
+    db.commit()
 
 def leaveStudentFromGroup(student_id: int, group_id: int):
     db = get_db()

@@ -12,6 +12,7 @@ class Student(Base):
 
     groups = relationship("Group", secondary="group_students", back_populates="students")
 
+
 class Teacher(Base):
     __tablename__ = "teachers"
 
@@ -20,7 +21,7 @@ class Teacher(Base):
     name = Column(String(60))
     isAdmin = Column(Boolean, default=False)
 
-    groups = relationship("Group", back_populates="teacher")
+    groups = relationship("Group", cascade="all, delete", back_populates="teacher")
 
 
 class Course(Base):
@@ -29,7 +30,7 @@ class Course(Base):
     id = Column(Integer, index=True, primary_key=True)
     name = Column(String(20), unique=True)
     
-    groups = relationship("Group", back_populates="course")
+    groups = relationship("Group", cascade="all, delete", back_populates="course")
 
 
 class Group(Base):
@@ -39,8 +40,8 @@ class Group(Base):
     day = Column(String(2))
     time = Column(Integer)
     room = Column(Integer)
-    course_id = Column(Integer, ForeignKey("courses.id", ondelete='CASCADE'))
-    teacher_id = Column(Integer, ForeignKey("teachers.id", ondelete='CASCADE'))
+    course_id = Column(Integer, ForeignKey("courses.id"))
+    teacher_id = Column(Integer, ForeignKey("teachers.id"))
 
     teacher = relationship("Teacher", back_populates="groups")
     course = relationship("Course", back_populates="groups")
@@ -51,6 +52,6 @@ class GroupStudent(Base):
     __tablename__ = "group_students"
 
     id = Column(Integer, index=True, primary_key=True)
-    group_id = Column(Integer, ForeignKey("groups.id", ondelete='CASCADE'))
-    student_id = Column(Integer, ForeignKey("students.id", ondelete='CASCADE'))
+    group_id = Column(Integer, ForeignKey("groups.id"))
+    student_id = Column(Integer, ForeignKey("students.id"))
     balance = Column(Float, default=0)

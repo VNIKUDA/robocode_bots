@@ -34,8 +34,9 @@ class GroupForm(StatesGroup):
     room = State()
 
 
+dp = Dispatcher()
 async def setupTeacherBot():
-    dp = Dispatcher()
+    await bot.delete_webhook()
     dp.include_router(router)
     await dp.start_polling(bot)
 

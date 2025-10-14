@@ -23,8 +23,9 @@ menuButtons.button(text="Заробити зірочки")
 
 menuButtons.adjust(2, 1, 1)
 
+dp = Dispatcher()
 async def setupStudentBot():
-    dp = Dispatcher()
+    await bot.delete_webhook()
     dp.include_router(router)
     await dp.start_polling(bot)
 

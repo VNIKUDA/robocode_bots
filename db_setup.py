@@ -22,3 +22,8 @@ control.joinStudentToGroup(student1.id, group2.id)
 
 print([(group.course, group.day) for group in control.getStudentGroups(student1.username)])
 print([(group.course, group.day) for group in control.getTeacherGroups(teacher.id)])
+
+control.deleteTeacher(teacher.username)
+
+print([(group.course, group.day) for group in control.getStudentGroups(student1.username)])
+print([(group.course, group.day) for group in control.getTeacherGroups(teacher.id)])
