@@ -73,7 +73,6 @@ async def message_admin_handler(message: Message):
         if len(message.text.split()) != 2:
             await message.answer("Пароль невірний.")
             return
-
         hashFromPassword = sha256(message.text.split()[-1].encode()).hexdigest()
 
         if hashFromPassword == ADMIN_PASSWORD_HASH:

@@ -8,7 +8,7 @@ from flask import Flask, request
 
 from database.database import setupDatabase
 from bots import teacherBot, studentBot
-# from webhook_settings import setupWebhook
+from webhook_settings import setupWebhook
 
 from aiogram import Bot
 from aiogram.types import Update
@@ -34,7 +34,6 @@ application = Flask(__name__)
 def teacher_bot_request_handler():
     if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != SECRET_TOKEN:
         return 'Forbidden', 403
-
     update_json = request.json
 
     async def teacher_bot_handler():
@@ -51,7 +50,6 @@ def teacher_bot_request_handler():
 def student_bot_request_handler():
     if request.headers.get("X-Telegram-Bot_api-Secret-Token") != SECRET_TOKEN:
         return "Forbidden", 403
-
     update_json = request.json
 
     async def student_bot_handler():

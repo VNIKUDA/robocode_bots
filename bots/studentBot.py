@@ -51,8 +51,6 @@ async def message_handler(message: Message):
 async def message_handler(message: Message):
     student = control.getStudent(message.chat.username)
 
-
-
     if not student:
         if len(message.text.split()) != 2:
             await message.answer("Вибач, але я не розумію таке ім'я. Треба написати <b>\"Призвіще Ім'я\"</b>.\"")
