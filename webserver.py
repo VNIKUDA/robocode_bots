@@ -2,11 +2,13 @@ import asyncio
 from os import getenv
 from dotenv import load_dotenv
 
-load_dotenv("/home/RoboBotServer/robocode_bots/.env")
+# load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
+load_dotenv() # local dev version
 
 from flask import Flask, request
 
 from database.database import setupDatabase
+from database.control import resetStudentsQuizCompletion
 from bots import teacherBot, studentBot
 from webhook_settings import setupWebhook
 
@@ -15,6 +17,8 @@ from aiogram.types import Update
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # Teacher bot settings
 TEACHER_BOT_TOKEN = getenv("TEACHER_BOT_TOKEN")
@@ -26,8 +30,14 @@ STUDENT_WEBPATH = "/student"
 
 SECRET_TOKEN = getenv("WEBHOOK_SECRET")
 
+# Setup database and webhook settings
 setupDatabase()
-# setupWebhook()
+if __name__ == "__main__":
+    asyncio.run(setupWebhook())
+scheduler = AsyncIOScheduler()
+scheduler.add_job(resetStudentsQuizCompletion, trigger="cron", year="*", month="*", day="*", hour=1, minute=0, second=0)
+scheduler.start()
+
 application = Flask(__name__)
 
 @application.route(TEACHER_WEBPATH, methods=["POST"])
