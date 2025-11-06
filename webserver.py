@@ -18,7 +18,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 # Teacher bot settings
 TEACHER_BOT_TOKEN = getenv("TEACHER_BOT_TOKEN")
@@ -34,7 +34,7 @@ SECRET_TOKEN = getenv("WEBHOOK_SECRET")
 setupDatabase()
 if __name__ == "__main__":
     asyncio.run(setupWebhook())
-scheduler = AsyncIOScheduler()
+scheduler = BackgroundScheduler()
 scheduler.add_job(resetStudentsQuizCompletion, trigger="cron", year="*", month="*", day="*", hour=1, minute=0, second=0)
 scheduler.start()
 

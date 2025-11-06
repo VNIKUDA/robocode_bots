@@ -1,4 +1,4 @@
-from os import getenv
+from os import getenv, remove
 from dotenv import load_dotenv
 
 # load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
@@ -10,7 +10,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import CommandStart, Command
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types.callback_query import CallbackQuery
-from aiogram.types import Message, ReplyKeyboardRemove, ReplyKeyboardMarkup
+from aiogram.types import Message
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
@@ -38,9 +38,10 @@ controlGroupMenuButtons = ReplyKeyboardBuilder()
 controlGroupMenuButtons.button(text="Інформація про групу")
 controlGroupMenuButtons.button(text="Завантажити питання")
 controlGroupMenuButtons.button(text="Видалити групу")
+controlGroupMenuButtons.button(text="Додати студента")
 controlGroupMenuButtons.button(text="Керувати студентами")
 controlGroupMenuButtons.button(text="Вийти")
-controlGroupMenuButtons.adjust(2, 2, 1)
+controlGroupMenuButtons.adjust(1, 2, 2, 1)
 
 studentControlMenuButtons = ReplyKeyboardBuilder()
 studentControlMenuButtons.button(text="Інформація")
@@ -48,6 +49,9 @@ studentControlMenuButtons.button(text="Видалити з групи")
 studentControlMenuButtons.button(text="Змінити баланс")
 studentControlMenuButtons.button(text="Вийти")
 studentControlMenuButtons.adjust(1, 2, 1)
+
+cancelButton = ReplyKeyboardBuilder()
+cancelButton.button(text="Скасувати")
 
 class GroupForm(StatesGroup):
     course_category = State()
@@ -58,7 +62,6 @@ class GroupForm(StatesGroup):
 
 class StudentControlCallback(CallbackData, prefix="student_control"):
     student_id: int
-    group_id: int
 
 class StudentControl(StatesGroup):
     main = State()
@@ -72,6 +75,10 @@ class ControlGroup(StatesGroup):
     main = State()
     delete_group = State()
     upload_question = State()
+
+class AddGroupStudent(StatesGroup):
+    name = State()
+    login = State()
 
 
 dp = Dispatcher()
@@ -87,60 +94,67 @@ async def cancel_handler(message: Message, state: FSMContext):
     if current_state is None:
         return
 
-    await state.clear()
-    await message.reply('Скасовано', reply_markup=teacherMenuButtons.as_markup())
+    if current_state in ("AddGroupStudent:name", "AddGroupStudent:login"):
+        await state.set_state(ControlGroup.main)
+        await message.answer("Скасовано", reply_markup=controlGroupMenuButtons.as_markup())
+    else:
+        await state.clear()
+        await message.answer('Скасовано', reply_markup=teacherMenuButtons.as_markup())
 
 
 @dp.callback_query(StudentControlCallback.filter())
 async def student_control_handler(query: CallbackQuery, callback_data: StudentControlCallback, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state != "ControlGroup:main":
+        return
+
     teacher = control.getTeacher(query.from_user.username)
-    group = control.getGroupById(callback_data.group_id)
-    student = control.getStudentById(callback_data.student_id)
+    group_student = control.getGroupStudentById(callback_data.student_id)
+    group = control.getGroupById(group_student.group_id)
 
     if group.teacher_id != teacher.id:
         query.answer("Помилка")
         return
     
     await state.set_state(StudentControl.main)
-    await state.update_data(group_id=group.id, student_id=student.id)
+    await state.update_data(group_id=group.id, student_id=group_student.id)
 
-    balance = control.getStudentBalance(student.id, group.id)
     await query.answer(" ")
-    await query.message.answer(f"Студент:\n{student.name} - {balance}", reply_markup=studentControlMenuButtons.as_markup())
+    await query.message.delete()
+    await query.message.answer(f"<b>Режим керування студентом</b>\nСтудент: {group_student.student_name}", reply_markup=studentControlMenuButtons.as_markup())
 
 
+# Меню керування студентами
 @dp.message(StudentControl.main)
 async def student_control_message_handler(message: Message, state: FSMContext):
 
     data = await state.get_data()
 
-    student = control.getStudentById(data["student_id"])
-    group = control.getGroupById(data["group_id"])
-    student_balance = control.getStudentBalance(student.id, group.id)
+    group_student = control.getGroupStudentById(data["student_id"])
 
     match message.text.strip():
         case "Інформація":
-            await message.answer(f"<b>Інформація про студента</b>\nІм'я: {student.name}\nБаланс: {student_balance}")
+            await message.answer(f"<b>Інформація про студента</b>\nІм'я - {group_student.student_name}\nЛогін - {group_student.student_login}\nБаланс - {group_student.balance}")
         case "Змінити баланс":
             await state.set_state(StudentControl.change_balance)
-            await message.answer(f"Поточний баланс - <b>{student_balance}</b>\nВведіть новий баланс:")
+            await message.answer(f"Поточний баланс - <b>{group_student.balance}</b>\nВведіть новий баланс:")
         case "Видалити з групи":
             delete_confirmation = ReplyKeyboardBuilder()
             delete_confirmation.button(text="Так")
             delete_confirmation.button(text="Ні")
 
             await state.set_state(StudentControl.delete)
-            await message.answer(f"Видалити студента <b>{student.name}</b>?\nНапишіть \"Так\" щоб підтвердити, \"Ні\" щоб скасувати.", reply_markup=delete_confirmation.as_markup())
+            await message.answer(f"Видалити студента <b>{group_student.student_name}</b>?\nНапишіть \"Так\" щоб підтвердити, \"Ні\" щоб скасувати.", reply_markup=delete_confirmation.as_markup())
         case "Вийти":
             await state.set_state(ControlGroup.main)
             await message.answer("Режим керування групою", reply_markup=controlGroupMenuButtons.as_markup())
 
 
+# Меню керування студентами
 @dp.message(StudentControl.change_balance)
 async def change_student_balance_handler(message: Message, state: FSMContext):
     data = await state.get_data()
-    student = control.getStudentById(data["student_id"])
-    group = control.getGroupById(data["group_id"])
+    group_student = control.getGroupStudentById(data["student_id"])
 
     new_balance = message.text.strip()
 
@@ -149,23 +163,23 @@ async def change_student_balance_handler(message: Message, state: FSMContext):
         return
     
     new_balance = float(new_balance)
-    control.setStudentBalanceInGroup(student.id, group.id, new_balance)
+    control.setGroupStudentBalance(group_student.id, new_balance)
 
     await state.set_state(StudentControl.main)
     await message.answer("Новий баланс встановлено", reply_markup=studentControlMenuButtons.as_markup())
 
+# Меню керува
 @dp.message(StudentControl.delete)
 async def delete_student_from_group_handler(message: Message, state: FSMContext):
     data = await state.get_data()
-    student = control.getStudentById(data["student_id"])
-    group = control.getGroupById(data["group_id"])
+    group_student = control.getGroupStudentById(data["student_id"])
 
     match message.text.strip():
         case "Так":
-            control.leaveStudentFromGroup(student.id, group.id)
+            control.deleteGroupStudent(group_student.id)
 
             await state.set_state(ControlGroup.main)
-            await message.answer(f"Студента <b>{student.name}</b> видалено з групи.", reply_markup=controlGroupMenuButtons.as_markup())
+            await message.answer(f"Студента <b>{group_student.student_name}</b> видалено з групи.", reply_markup=controlGroupMenuButtons.as_markup())
         case "Ні":
             await state.set_state(StudentControl.main)
             await message.answer("Видалення студента скасовано.", reply_markup=studentControlMenuButtons.as_markup())
@@ -173,9 +187,12 @@ async def delete_student_from_group_handler(message: Message, state: FSMContext)
 
 @dp.callback_query(ControlGroupCallback.filter())
 async def control_group_handler(query: CallbackQuery, callback_data: ControlGroup, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is not None:
+        return
+
     teacher = control.getTeacher(query.from_user.username)
     group = control.getGroupById(callback_data.group_id)
-
 
     if group.teacher_id != teacher.id:
         await query.answer("Помилка")
@@ -184,7 +201,9 @@ async def control_group_handler(query: CallbackQuery, callback_data: ControlGrou
     await state.update_data(group_id=group.id)
 
     await query.answer(" ")
-    await query.message.answer(f"<b>Режим керування</b>\nГрупа: {group.room} {group.day} {group.time}:00 {group.course.name}", reply_markup=controlGroupMenuButtons.as_markup())
+    await query.message.delete()
+    await query.message.answer(f"<b>Режим керування групою</b>\nГрупа: {group.room} {group.day} {group.time}:00 {group.course.name}", reply_markup=controlGroupMenuButtons.as_markup())
+
 
 
 @dp.message(ControlGroup.main)
@@ -202,13 +221,12 @@ async def control_group_message_handler(message: Message, state: FSMContext):
 
             await message.answer("Видалити цю групу?\nВиберіть <b>\"Так\"</b> щоб підтвердити видалення, та <b>\"Ні\"</b> щоб скасувати видалення.", reply_markup=confirm_reply.as_markup())
         case "Інформація про групу":
-            reply_text = f"<b>{group.room} {group.day} {group.time}:00 {group.course.name}</b>\n"
+            reply_text = f"<b>{group.room} {group.day} {group.time}:00 {group.course.name}</b>\nКод доступу: {group.code}\n"
 
             if len(group.students) > 0:
-                for student in group.students:
-                    student_balances = control.getStudentBalances(student.id)
-                    balance = [balance for balance_group, balance in student_balances if balance_group.id == group.id][0]
-                    reply_text += f"{student.name} - {balance}"
+                reply_text += "Студенти:\n"
+                for group_student in group.students:
+                    reply_text += f" ● {group_student.student_name} - {group_student.balance}\n"
             else:
                 reply_text += "Студентів у групі немає."
 
@@ -216,12 +234,18 @@ async def control_group_message_handler(message: Message, state: FSMContext):
         case "Керувати студентами":
             if len(group.students) > 0:
                 student_selection = InlineKeyboardBuilder()
-                for student in group.students:
-                    student_selection.button(text=student.name, callback_data=StudentControlCallback(student_id=student.id, group_id=group.id))
+                for group_student in group.students:
+                    student_selection.button(text=group_student.student_name, callback_data=StudentControlCallback(student_id=group_student.id))
+                student_selection.adjust(*[1 for _ in range(len(group.students))])
                 
                 await message.answer("Виберіть студента:", reply_markup=student_selection.as_markup())
             else:
                 await message.answer("Студнетів в групі немає.")
+
+        case "Додати студента":
+            await state.set_state(AddGroupStudent.name)
+
+            await message.answer("Введіть ім'я студента:", reply_markup=cancelButton.as_markup())
 
         case "Завантажити питання":
             await state.set_state(ControlGroup.upload_question)
@@ -232,7 +256,6 @@ async def control_group_message_handler(message: Message, state: FSMContext):
 
             await message.answer("<b>Вихід з режиму керування групою</b>", reply_markup=teacherMenuButtons.as_markup())
 
-    # await message.answer(f"{group.room} {group.day} {group.time}:00 {group.course.name}")
 
 @dp.message(ControlGroup.upload_question)
 async def upload_question_handler(message: Message, state: FSMContext):
@@ -271,10 +294,12 @@ async def delete_group_handler(message: Message, state: FSMContext):
     match message.text.strip():
         case "Так":
             control.deleteGroup(group.id)
-
-            await state.clear()
-            await message.answer(f"Успішно видалено групу \"{group.room} {group.day} {group.time}:00 {group.course.name}\"", reply_markup=teacherMenuButtons.as_markup())
-            return
+            try:
+                remove(f"./media/{group.id}.csv")
+            finally:
+                await state.clear()
+                await message.answer(f"Успішно видалено групу \"{group.room} {group.day} {group.time}:00 {group.course.name}\"", reply_markup=teacherMenuButtons.as_markup())
+                return
         case "Ні":
             await state.set_state(ControlGroup.main)
             await message.answer("Видалення групи скасовано.", reply_markup=controlGroupMenuButtons.as_markup())
@@ -285,6 +310,27 @@ async def delete_group_handler(message: Message, state: FSMContext):
     confirm_reply.button(text="Ні")
 
     await message.answer("Видалити цю групу?\nВиберіть <b>\"Так\"</b> щоб підтвердити видалення, та <b>\"Ні\"</b> щоб скасувати видалення.", reply_markup=confirm_reply.as_markup())         
+
+
+@dp.message(AddGroupStudent.name)
+async def add_group_student_name_handler(message: Message, state: FSMContext):    
+    await state.update_data(student_name=message.text.strip())
+    await state.set_state(AddGroupStudent.login)
+    await message.answer("Введіть логін студента:", reply_markup=cancelButton.as_markup())
+
+
+@dp.message(AddGroupStudent.login)
+async def add_group_stundent_login_handler(message: Message, state: FSMContext):
+    if len(message.text.split()) > 1:
+        await message.answer("У логіні не повинно бути пробілів")
+        return
+
+    data = await state.get_data()
+    group_student = control.addGroupStudent(data["student_name"], message.text.strip(), data["group_id"])
+
+    await state.set_state(ControlGroup.main)
+    await message.answer(f"Студента успішно додано:\nІм'я - {group_student.student_name}\nЛогін - {group_student.student_login}", reply_markup=controlGroupMenuButtons.as_markup())
+
 
 @dp.message(GroupForm.course_category)
 async def course_category_handler(message: Message, state: FSMContext):
@@ -396,7 +442,8 @@ async def course_handler(message: Message, state: FSMContext):
         group = control.addGroup(group["day"], group["time"], group["room"], group["course"], teacher.id)
 
         await message.answer(f"Групу \"{group.room} {group.day} {group.time}:00 {group.course.name}\" успішно створено.", reply_markup=teacherMenuButtons.as_markup())
-    except:
+    except Exception as e:
+        print(type(e), str(e))
         await message.answer("Помилка.\nНе можна додати групу, бо аудиторія на цей час уже занята.", reply_markup=teacherMenuButtons.as_markup())
 
 
@@ -405,7 +452,8 @@ async def message_start_handler(message: Message):
     teacher = control.getTeacher(message.chat.username)
 
     if not teacher:
-        await message.answer("Привіт друже!\nХм, вперше тебе бачу, напевно новенький. Мене звати <b>РобоБот Робокодовіч</b>. А тебе як звати?")
+        teacher = control.addTeacher(message.chat.username)
+        await message.answer("Приємно познайомитись)\nЧим можу допомогти?", reply_markup=teacherMenuButtons.as_markup())
 
 
 @dp.message(Command("activate_admin"))
@@ -488,14 +536,6 @@ async def menu_start_handler(message: Message):
 async def message_handler(message: Message, state: FSMContext):
     teacher = control.getTeacher(message.chat.username)
 
-    if not teacher:
-        if len(message.text.split()) != 2:
-            await message.answer("Ти здається щось попутав. Давай спробуєм ще раз: напиши мені <b>прізвище</b> та <b>ім'я</b>, будь-ласка.")
-            return
-
-        teacher = control.addTeacher(message.chat.username, message.text.strip())
-        await message.answer("Приємно познайомитись)\nЧим можу допомогти?", reply_markup=teacherMenuButtons.as_markup())
-
     match message.text:
         case "Створити групу":
             categories = control.getAllCourseCategories()
@@ -519,6 +559,7 @@ async def message_handler(message: Message, state: FSMContext):
             group_selection = InlineKeyboardBuilder()
             for group in groups:
                 group_selection.button(text=f"{group.room} {group.day} {group.time}:00 {group.course.name}", callback_data=ControlGroupCallback(group_id=group.id))
+            group_selection.adjust(*[1 for _ in range(len(groups))])
             
             await message.answer("Виберіть групу:", reply_markup=group_selection.as_markup())
 
@@ -528,7 +569,7 @@ async def message_handler(message: Message, state: FSMContext):
             if len(groups) > 0:
                 reply_text = "<b>Твої групи:</b>\n"
                 for group in groups:
-                    reply_text += f"{group.room} {group.day} {group.time}:00 {group.course.name}\n"
+                    reply_text += f" ● {group.room} {group.day} {group.time}:00 {group.course.name}\n"
             else:
                 reply_text = "У тебе немає створених груп."
 

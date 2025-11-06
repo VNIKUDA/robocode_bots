@@ -31,11 +31,20 @@ control.addCourse("Python Beginner", python.id)
 control.addCourse("Python Junior", python.id)
 control.addCourse("Python Middle", python.id)
 
-# student = control.addStudent("AleksGoncharuk1", "Гончарук Олександр")
-# teacher = control.addTeacher("AleksGoncharuk", "Гончарук Олександр")
+# student = control.addStudent("AleksGoncharuk1")
+# teacher = control.addTeacher("AleksGoncharuk")
 
 # group1 = control.addGroup("ПТ", 18, 1, 1, 1)
-# control.joinStudentToGroup(student.id, group1.id)
+# input()
+# control.addGroupStudent("Санечек", "agoncharuk", group1.id)
+# input()
+# control.loginGroupStudent("agoncharuk", student.id, group1.id)
+# # control.joinStudentToGroup(student.id, group1.id)
+
+# print([student.student_name for student in control.getGroupStudents(group1.id)])
+# input()
+# control.kickGroupStudent(student.id, group1.id)
+# print(control.getGroupStudents(group1.id))
 
 # student1 = control.addStudent("AleksGoncharuk", "Гончарук Олександр")
 # group2 = control.addGroup("ЧТ", 18, 1, 4, 1)

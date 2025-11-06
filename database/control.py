@@ -2,14 +2,10 @@ from database import models
 from database.database import get_db, engine
 from sqlalchemy import text
 
-# # ІНСТРУМЕНТИ
-# def refreshObject(model):
-#     db = get_db()
+import random
+import string
 
-#     db.refresh(model)
-#     return model
-
-
+# ІНСТРУМЕНТИ
 def executeSqlQuery(query: str):
     with engine.begin() as conn:
         return conn.execution_options(autocommit=True).execute(text(query)).all()
@@ -23,8 +19,8 @@ def executeSqlAlchemyQuery(query: str):
     return exec(query, locals={"db": db}, globals={"models": models})
 
 # СТВОРЕННЯ
-def addStudent(username: str, name: str):
-    student = models.Student(username=username, name=name)
+def addStudent(username: str):
+    student = models.Student(username=username)
 
     db = get_db()
     db.add(student)
@@ -34,8 +30,8 @@ def addStudent(username: str, name: str):
     return student
 
 
-def addTeacher(username: str, name: str):
-    teacher = models.Teacher(username=username, name=name)
+def addTeacher(username: str):
+    teacher = models.Teacher(username=username)
 
     db = get_db()
     db.add(teacher)
@@ -67,14 +63,34 @@ def addCourse(name: str, course_category_id: int):
 
 
 def addGroup(day: str, time: int, room: int, course_id: int, teacher_id: int):
-    group = models.Group(day=day, time=time, room=room, course_id=course_id, teacher_id=teacher_id)
-
     db = get_db()
+    group = models.Group(day=day, time=time, room=room, course_id=course_id, teacher_id=teacher_id)
+    
+    db.add(group)
+    db.commit()
+    db.refresh(group)
+
+    random.seed(group.id)
+    db = get_db()
+    group = db.query(models.Group).where(models.Group.id == group.id).first()
+    group.code = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(8))
     db.add(group)
     db.commit()
     db.refresh(group)
 
     return group
+
+
+def addGroupStudent(student_name: str, student_login: str, group_id: int):
+    db = get_db()
+
+    group_student = models.GroupStudent(student_name=student_name, student_login=student_login, group_id=group_id)
+
+    db.add(group_student)
+    db.commit()
+    db.refresh(group_student)
+
+    return group_student
 
 
 # ОТРИМАННЯ
@@ -142,32 +158,44 @@ def getTeacherGroups(teacher_id: int):
     return db.query(models.Group).where(models.Group.teacher_id == teacher_id).all()
 
 
-def getStudentGroups(student_username: str):
+def getStudentGroupsById(student_id: int):
     db = get_db()
 
-    return db.query(models.Group).select_from(models.Student).join(models.Student.groups).where(models.Student.username == student_username).all()
+    return db.query(models.Group).join(models.GroupStudent).where(models.GroupStudent.student_id == student_id).all()
 
 
 def getStudentBalances(student_id: int):
     db = get_db()
 
-    student_group_pairs = db.query(models.GroupStudent).where(models.GroupStudent.student_id == student_id).all()
+    student_groups = db.query(models.GroupStudent).where(models.GroupStudent.student_id == student_id).all()
 
     student_balances = [
-        (db.query(models.Group).where(models.Group.id == pair.group_id).first(), pair.balance)
+        (group_student.group, group_student.balance)
 
-        for pair in student_group_pairs
+        for group_student in student_groups
     ]
 
     return student_balances
 
 
-def getStudentBalance(student_id: int, group_id: int):
+def getGroupByCode(group_code: str):
     db = get_db()
 
-    student_group_pair = db.query(models.GroupStudent).where(models.GroupStudent.student_id == student_id, models.GroupStudent.group_id == group_id).first()
+    group = db.query(models.Group).where(models.Group.code == group_code).first()
 
-    return student_group_pair.balance
+    return group
+
+def getGroupStudentByLogin(student_login: str, group_id):
+    db = get_db()
+
+    group_student = db.query(models.GroupStudent).where(models.GroupStudent.student_login == student_login, models.GroupStudent.group_id == group_id).first()
+
+    return group_student
+
+def getGroupStudent(student_id: int, group_id: int):
+    db = get_db()
+
+    return db.query(models.GroupStudent).where(models.GroupStudent.student_id == student_id, models.GroupStudent.group_id).first()
 
 
 def getStudentQuizCompletetion(student_id: int, group_id: int):
@@ -176,6 +204,22 @@ def getStudentQuizCompletetion(student_id: int, group_id: int):
     group_student_pair = db.query(models.GroupStudent).where(models.GroupStudent.student_id == student_id, models.GroupStudent.group_id == group_id).first()
 
     return group_student_pair.has_answered
+
+
+def getGroupStudentById(group_student_id: int):
+    db = get_db()
+
+    group_student = db.query(models.GroupStudent).where(models.GroupStudent.id == group_student_id).first()
+
+    return group_student
+
+
+def getGroupStudents(group_id: int):
+    db = get_db()
+
+    group_students = db.query(models.GroupStudent).where(models.GroupStudent.group_id == group_id).all()
+
+    return group_students
 
 # ОНОВЛЕННЯ
 def setTeacherAdminStatus(username: str, isAdmin: bool = False):
@@ -187,21 +231,11 @@ def setTeacherAdminStatus(username: str, isAdmin: bool = False):
     db.commit()
 
 
-def joinStudentToGroup(student_id: int, group_id: int):
-    db = get_db()
-
-    group_student_relationship = models.GroupStudent(student_id=student_id, group_id=group_id)
-
-    db.add(group_student_relationship)
-    db.commit()
-
-
-def setStudentBalanceInGroup(student_id: int, group_id: int, balance: float):
+def setGroupStudentBalance(group_student_id: int, balance: float):
     db = get_db()
 
     group_student_pair = db.query(models.GroupStudent).where(
-        models.GroupStudent.group_id == group_id,
-        models.GroupStudent.student_id == student_id
+        models.GroupStudent.id == group_student_id
     ).first()
 
     if group_student_pair:
@@ -220,7 +254,7 @@ def setStudentQuizCompletion(student_id: int, group_id: int):
     db.add(group_student_pair)
     db.commit()
 
-async def resetStudentsQuizCompletion():
+def resetStudentsQuizCompletion():
     db = get_db()
 
     group_student_pairs = db.query(models.GroupStudent).all()
@@ -230,7 +264,28 @@ async def resetStudentsQuizCompletion():
 
     db.commit()
     
-    
+
+def loginGroupStudent(student_login: str, student_id: int, group_id: int):
+    db = get_db()
+
+    group_student = db.query(models.GroupStudent).where(models.GroupStudent.group_id == group_id, models.GroupStudent.student_login == student_login).first()
+    group_student.student_id = student_id
+
+    db.add(group_student)
+    db.commit()
+
+def deloginGroupStudent(student_id: int, group_id: int):
+    db = get_db()
+
+    group_student = db.query(models.GroupStudent).where(
+        models.GroupStudent.student_id == student_id,
+        models.GroupStudent.group_id == group_id
+    ).first()
+    group_student.student_id = None
+
+    db.add(group_student)
+    db.commit()
+
 # ВИДАЛЕННЯ
 def deleteStudent(student_username: str):
     db = get_db()
@@ -267,12 +322,18 @@ def deleteGroup(group_id: int):
     db.delete(group)
     db.commit()
 
-def leaveStudentFromGroup(student_id: int, group_id: int):
+def deleteGroupStudent(group_student_id: int):
     db = get_db()
 
-    group_student_relationship = db.query(models.GroupStudent).where(
-        models.GroupStudent.student_id == student_id, models.GroupStudent.group_id == group_id
-    ).first()
+    group_student_relationship = db.query(models.GroupStudent).where(models.GroupStudent.id == group_student_id).first()
 
     db.delete(group_student_relationship)
+    db.commit()
+
+def kickGroupStudent(group_student_id: int, group_id: int):
+    db = get_db()
+
+    group_student = db.query(models.GroupStudent).where(models.GroupStudent.group_student_id == group_student_id, models.GroupStudent.group_id == group_id).first()
+
+    db.delete(group_student)
     db.commit()
