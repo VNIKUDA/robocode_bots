@@ -1,8 +1,8 @@
 from os import getenv, remove
 from dotenv import load_dotenv
 
-# load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
-load_dotenv() # local dev version
+load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
+# load_dotenv() # local dev version
 
 from aiogram import Bot, Router, Dispatcher, F
 from aiogram.enums import ParseMode
@@ -16,7 +16,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from sqlalchemy.exc import IntegrityError 
+from sqlalchemy.exc import IntegrityError
 
 from database import control
 from database.database import days
@@ -115,12 +115,12 @@ async def student_control_handler(query: CallbackQuery, callback_data: StudentCo
     if group.teacher_id != teacher.id:
         query.answer("Помилка")
         return
-    
+
     await state.set_state(StudentControl.main)
     await state.update_data(group_id=group.id, student_id=group_student.id)
 
     await query.answer(" ")
-    await query.message.delete()
+    await query.message.edit_reply_markup(reply_markup=None)
     await query.message.answer(f"<b>Режим керування студентом</b>\nСтудент: {group_student.student_name}", reply_markup=studentControlMenuButtons.as_markup())
 
 
@@ -161,7 +161,7 @@ async def change_student_balance_handler(message: Message, state: FSMContext):
     if not new_balance.replace(".", "", 1).isnumeric():
         await message.answer("Помилка")
         return
-    
+
     new_balance = float(new_balance)
     control.setGroupStudentBalance(group_student.id, new_balance)
 
@@ -201,7 +201,7 @@ async def control_group_handler(query: CallbackQuery, callback_data: ControlGrou
     await state.update_data(group_id=group.id)
 
     await query.answer(" ")
-    await query.message.delete()
+    await query.message.edit_reply_markup(reply_markup=None)
     await query.message.answer(f"<b>Режим керування групою</b>\nГрупа: {group.room} {group.day} {group.time}:00 {group.course.name}", reply_markup=controlGroupMenuButtons.as_markup())
 
 
@@ -237,7 +237,7 @@ async def control_group_message_handler(message: Message, state: FSMContext):
                 for group_student in group.students:
                     student_selection.button(text=group_student.student_name, callback_data=StudentControlCallback(student_id=group_student.id))
                 student_selection.adjust(*[1 for _ in range(len(group.students))])
-                
+
                 await message.answer("Виберіть студента:", reply_markup=student_selection.as_markup())
             else:
                 await message.answer("Студнетів в групі немає.")
@@ -265,7 +265,7 @@ async def upload_question_handler(message: Message, state: FSMContext):
     if not message.document:
         await message.answer("Надішліть файл")
         return
-    
+
     if message.document.file_name.split(".")[-1] != "csv":
         await message.answer("Формат файлу повинен бути CSV")
         return
@@ -276,7 +276,7 @@ async def upload_question_handler(message: Message, state: FSMContext):
     await message.bot.download_file(file.file_path, f"./media/{group_filename}")
     await message.answer("Файл успішно завантажено.")
     await state.set_state(ControlGroup.main)
-    
+
 
 @dp.message(ControlGroup.delete_group)
 async def delete_group_handler(message: Message, state: FSMContext):
@@ -290,7 +290,7 @@ async def delete_group_handler(message: Message, state: FSMContext):
     if group.teacher_id != teacher.id:
         await message.answer("Ви не є викладачем групи.", reply_markup=teacherMenuButtons.as_markup())
         return
-    
+
     match message.text.strip():
         case "Так":
             control.deleteGroup(group.id)
@@ -309,11 +309,11 @@ async def delete_group_handler(message: Message, state: FSMContext):
     confirm_reply.button(text="Так")
     confirm_reply.button(text="Ні")
 
-    await message.answer("Видалити цю групу?\nВиберіть <b>\"Так\"</b> щоб підтвердити видалення, та <b>\"Ні\"</b> щоб скасувати видалення.", reply_markup=confirm_reply.as_markup())         
+    await message.answer("Видалити цю групу?\nВиберіть <b>\"Так\"</b> щоб підтвердити видалення, та <b>\"Ні\"</b> щоб скасувати видалення.", reply_markup=confirm_reply.as_markup())
 
 
 @dp.message(AddGroupStudent.name)
-async def add_group_student_name_handler(message: Message, state: FSMContext):    
+async def add_group_student_name_handler(message: Message, state: FSMContext):
     await state.update_data(student_name=message.text.strip())
     await state.set_state(AddGroupStudent.login)
     await message.answer("Введіть логін студента:", reply_markup=cancelButton.as_markup())
@@ -362,7 +362,7 @@ async def course_handler(message: Message, state: FSMContext):
     if not course:
         await message.answer("Вибач, але такого курсу немає в базі.\nСпробуй ще раз.")
         return
-    
+
     if course.course_category_id != state_data["course_category"]:
         await message.answer("Вибач, але цей курс не належить поточному напрямку.\nСпробуй ще раз.")
         return
@@ -404,7 +404,7 @@ async def course_handler(message: Message, state: FSMContext):
     if not time.isnumeric():
         await message.answer("Вибач, але це не число.\nСпробуй ще раз.")
         return
-    
+
     time = int(time)
     if time not in range(0, 25):
         await message.answer("Вибач, але такого часу не може бути.\nСробуй ще раз.")
@@ -482,7 +482,7 @@ async def sql_query_handler(message: Message):
         return
     if len(message.text.split()) < 2:
         await message.answer("Помилка\nВведіть SQL запит.")
-    
+
     try:
         result = control.executeSqlQuery(message.text.removeprefix("/execute_sql").strip())
 
@@ -499,7 +499,7 @@ async def sql_query_handler(message: Message):
         await message.answer("<b>Відмова</b>\nУ вас немає прав для використання цієї команди.")
         return
     if len(message.text.split()) < 2:
-        await message.answer("Помилка\nВведіть код запиту.")    
+        await message.answer("Помилка\nВведіть код запиту.")
 
     try:
         control.executeSqlAlchemyQuery(message.text.removeprefix("/execute_sqlalchemy").strip())
@@ -516,7 +516,7 @@ async def sql_query_handler(message: Message):
         await message.answer("<b>Відмова</b>\nУ вас немає прав для використання цієї команди.")
         return
     if len(message.text.split()) < 2:
-        await message.answer("Помилка\nВведіть код запиту.")    
+        await message.answer("Помилка\nВведіть код запиту.")
 
     try:
         result = control.evaluateSqlAlchemyQuery(message.text.removeprefix("/evaluate_sqlalchemy").strip())
@@ -560,7 +560,7 @@ async def message_handler(message: Message, state: FSMContext):
             for group in groups:
                 group_selection.button(text=f"{group.room} {group.day} {group.time}:00 {group.course.name}", callback_data=ControlGroupCallback(group_id=group.id))
             group_selection.adjust(*[1 for _ in range(len(groups))])
-            
+
             await message.answer("Виберіть групу:", reply_markup=group_selection.as_markup())
 
         case "Мої групи":

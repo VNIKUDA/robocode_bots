@@ -2,8 +2,8 @@ import asyncio
 from os import getenv
 from dotenv import load_dotenv
 
-# load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
-load_dotenv() # local dev version
+load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
+# load_dotenv() # local dev version
 
 from flask import Flask, request
 

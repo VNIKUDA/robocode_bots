@@ -1,8 +1,8 @@
 from os import getenv
 from dotenv import load_dotenv
 
-# load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
-load_dotenv() # local dev version
+load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
+# load_dotenv() # local dev version
 
 from aiogram import Bot, Router, Dispatcher, F
 from aiogram.enums import ParseMode
@@ -66,7 +66,7 @@ async def message_start_handler(message: Message):
 
     if not student:
         control.addStudent(message.chat.username)
-        await message.answer("Приємно познайомитись)\Чим можу допомогти?", reply_markup=menuButtons.as_markup())
+        await message.answer("Приємно познайомитись)\nЧим можу допомогти?", reply_markup=menuButtons.as_markup())
 
 
 @dp.callback_query(LeaveGroupCallback.filter())
@@ -89,7 +89,7 @@ async def leave_group_handler(query: CallbackQuery, callback_data: LeaveGroupCal
     await query.answer(" ")
     await state.set_state(LeaveGroupState.leave)
     await state.update_data(student_id=student.id, group_id=group.id)
-    await query.message.delete()
+    await query.message.edit_reply_markup(reply_markup=None)
     await query.message.answer(f"Покинути групу \"{group.room} {group.day} {group.time}:00 {group.course.name}\"?", reply_markup=options.as_markup())
 
 
@@ -134,13 +134,13 @@ async def earn_balance_handler(query: CallbackQuery, callback_data: EarnBalance,
         await query.answer("Помилка")
         await query.message.edit_text("Вибач, але це можна робити тільки один раз на день.\nПовертайся завтра щоб заробити ще зірочок!", reply_markup=None)
         return
-    
+
     try:
         filename = f"./media/{group.id}.csv"
         questions = pd.read_csv(filename)
     except FileNotFoundError:
         await query.answer(" ")
-        await query.message.delete()
+        await query.message.edit_reply_markup(reply_markup=None)
         await query.message.answer("Поки що немає доступних питань. Зверніться до вчителя.")
         return
 
@@ -150,7 +150,7 @@ async def earn_balance_handler(query: CallbackQuery, callback_data: EarnBalance,
     await state.set_state(QuestionPoll.question)
     await state.update_data(correct_option_id=question["correct_option_id"], group_id=group.id, student_id=student.id)
     await query.message.answer_poll(
-        question=question["question"], 
+        question=question["question"],
         options=[str(question[f"option{num}"]) for num in range(1, 5) if question[f"option{num}"] != ""],
         correct_option_id=question["correct_option_id"],
         type="quiz",
@@ -159,7 +159,7 @@ async def earn_balance_handler(query: CallbackQuery, callback_data: EarnBalance,
 
 
 @dp.poll_answer(QuestionPoll.question)
-async def poll_answer_handler(answer: PollAnswer, bot: Bot, state: FSMContext): 
+async def poll_answer_handler(answer: PollAnswer, bot: Bot, state: FSMContext):
     data = await state.get_data()
     control.setStudentQuizCompletion(data["student_id"], data["group_id"])
     group_student = control.getGroupStudent(data["student_id"], data["group_id"])
@@ -196,14 +196,14 @@ async def login_group_code_handler(message: Message, state: FSMContext):
     if not group_student:
         await message.answer("Помилка\nСтудента з таким логіном не існує.", reply_markup=cancelButton.as_markup())
         return
-    
+
     group = group_student.group
     student = control.getStudent(message.chat.username)
     if group_student.student_id == student.id:
         await message.answer("Помилка\nВи вже авторизовані.", reply_markup=menuButtons.as_markup())
         await state.clear()
         return
-    
+
     if group_student.student_id is not None:
         await message.answer("Помилка\nСтудента вже авторизовано на іншому телеграм акаунті.", reply_markup=menuButtons.as_markup())
         await state.clear()
@@ -221,7 +221,7 @@ async def message_handler(message: Message):
 
     if not student:
         return
-    
+
     await message.answer("Відкриваю меню:", reply_markup=menuButtons.as_markup())
 
 
@@ -236,7 +236,7 @@ async def message_handler(message: Message, state: FSMContext):
     groups = control.getStudentGroupsById(student.id)
 
     match command:
-        case "Мої курси":            
+        case "Мої курси":
             if len(groups) == 0:
                 await message.answer("У тебе немає приєднаних курсів.")
                 return
@@ -255,7 +255,7 @@ async def message_handler(message: Message, state: FSMContext):
             if len(groups) == 0:
                 await message.answer("У тебе немає приєднаних курсів.")
                 return
-            
+
             groups_to_delete = InlineKeyboardBuilder()
 
             for group in groups:
@@ -278,12 +278,12 @@ async def message_handler(message: Message, state: FSMContext):
                 reply_text += f"{group.room} {group.day} {group.time} {group.course.name} - {balance}\n"
 
             await message.answer(reply_text)
-            
+
         case "Заробити зірочки":
             if len(groups) == 0:
                 await message.answer("У тебе немає приєднаних курсів.")
                 return
-            
+
             group_selection = InlineKeyboardBuilder()
 
             for group in groups:

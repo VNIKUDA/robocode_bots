@@ -2,8 +2,8 @@ import asyncio
 from dotenv import load_dotenv
 from os import getenv
 
-# load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed 
-load_dotenv() # local dev version
+load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
+# load_dotenv() # local dev version
 
 from aiogram import Bot
 from aiogram.client.session.aiohttp import AiohttpSession
