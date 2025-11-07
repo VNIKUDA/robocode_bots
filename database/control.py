@@ -19,8 +19,8 @@ def executeSqlAlchemyQuery(query: str):
     return exec(query, locals={"db": db}, globals={"models": models})
 
 # СТВОРЕННЯ
-def addStudent(username: str):
-    student = models.Student(username=username)
+def addStudent(username: str, chat_id: int):
+    student = models.Student(username=username, chat_id=chat_id)
 
     db = get_db()
     db.add(student)
@@ -206,6 +206,14 @@ def getStudentQuizCompletetion(student_id: int, group_id: int):
     return group_student_pair.has_answered
 
 
+def getStudentsToNotify():
+    db = get_db()
+
+    students = db.query(models.Student).where(models.Student.notify == True).all()
+
+    return students
+
+
 def getGroupStudentById(group_student_id: int):
     db = get_db()
 
@@ -248,11 +256,22 @@ def setGroupStudentBalance(group_student_id: int, balance: float):
 def setStudentQuizCompletion(student_id: int, group_id: int):
     db = get_db()
 
-    group_student_pair = db.query(models.GroupStudent).where(models.GroupStudent.student_id == student_id, models.GroupStudent.group_id == group_id).first()
-    group_student_pair.has_answered = True
+    group_student = db.query(models.GroupStudent).where(models.GroupStudent.student_id == student_id, models.GroupStudent.group_id == group_id).first()
+    group_student.has_answered = True
 
-    db.add(group_student_pair)
+    db.add(group_student)
     db.commit()
+
+
+def setStudentNotification(username: str, notify: bool):
+    db = get_db()
+
+    student = db.query(models.Student).where(models.Student.username == username).first()
+    student.notify = notify
+
+    db.add(student)
+    db.commit()
+
 
 def resetStudentsQuizCompletion():
     db = get_db()

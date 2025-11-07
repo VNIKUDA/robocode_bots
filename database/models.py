@@ -8,6 +8,7 @@ class Student(Base):
 
     id = Column(Integer, index=True, primary_key=True)
     username = Column(String(50), unique=True)
+    chat_id = Column(Integer, nullable=True)
     notify = Column(Boolean, default=0)
 
 

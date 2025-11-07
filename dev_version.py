@@ -6,6 +6,7 @@ from aiogram import Dispatcher
 from bots import studentBot, teacherBot
 from database.database import setupDatabase
 from database.control import resetStudentsQuizCompletion
+from bots.studentBot import notifyStudentsDev
 from webhook_settings import resetWebhook
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -14,6 +15,7 @@ setupDatabase()
 async def main():
     scheduler = AsyncIOScheduler()
     scheduler.add_job(resetStudentsQuizCompletion, trigger="cron", year="*", month="*", day="*", hour="*", minute="*", second=30)
+    scheduler.add_job(notifyStudentsDev, trigger="cron", year="*", month="*", day="*", hour="*", minute="*", second=30)
     scheduler.start()
 
     studentBotTask = asyncio.create_task(studentBot.setupStudentBot())

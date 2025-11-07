@@ -35,7 +35,8 @@ setupDatabase()
 if __name__ == "__main__":
     asyncio.run(setupWebhook())
 scheduler = BackgroundScheduler()
-scheduler.add_job(resetStudentsQuizCompletion, trigger="cron", year="*", month="*", day="*", hour=1, minute=0, second=0)
+scheduler.add_job(resetStudentsQuizCompletion, trigger="cron", year="*", month="*", day="*", hour=4, minute=0, second=0)
+scheduler.add_job(studentBot.notifyStudents, trigger="cron", year="*", month="*", day="*", hour=13, minute=0, second=0)
 scheduler.start()
 
 application = Flask(__name__)

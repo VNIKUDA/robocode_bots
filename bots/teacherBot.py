@@ -1,8 +1,8 @@
 from os import getenv, remove
 from dotenv import load_dotenv
 
-load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
-# load_dotenv() # local dev version
+# load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
+load_dotenv() # local dev version
 
 from aiogram import Bot, Router, Dispatcher, F
 from aiogram.enums import ParseMode

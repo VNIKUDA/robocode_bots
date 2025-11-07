@@ -1,8 +1,8 @@
 from os import getenv
 from dotenv import load_dotenv
 
-load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
-# load_dotenv() # local dev version
+# load_dotenv("/home/RoboBotServer/robocode_bots/.env") # deployed
+load_dotenv() # local dev version
 
 from aiogram import Bot, Router, Dispatcher, F
 from aiogram.enums import ParseMode
@@ -17,10 +17,10 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from database import control
-from database.database import days
 
 import pandas as pd
 import random
+import asyncio
 
 storage = MemoryStorage()
 bot = Bot(token=getenv("STUDENT_BOT_TOKEN"), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -53,6 +53,16 @@ menuButtons.adjust(1, 2, 2)
 cancelButton = ReplyKeyboardBuilder()
 cancelButton.button(text="Скасувати")
 
+async def notifyStudentsDev():
+    students = control.getStudentsToNotify()
+
+    for student in students:
+        await bot.send_message(chat_id=student.chat_id, text=f"Привіт! 👋\nНе забудь пройти щоденне опитування щоб заробити зірочки! ⭐")
+
+
+def notifyStudents():
+    asyncio.run(notifyStudentsDev())
+
 
 dp = Dispatcher()
 async def setupStudentBot():
@@ -65,8 +75,8 @@ async def message_start_handler(message: Message):
     student = control.getStudent(message.chat.username)
 
     if not student:
-        control.addStudent(message.chat.username)
-        await message.answer("Приємно познайомитись)\nЧим можу допомогти?", reply_markup=menuButtons.as_markup())
+        control.addStudent(message.chat.username, message.chat.id)
+        await message.answer("Привіт 👋\nПриємно з тобою познайомитись 😊\nЧим можу допомогти?", reply_markup=menuButtons.as_markup())
 
 
 @dp.callback_query(LeaveGroupCallback.filter())
@@ -166,7 +176,7 @@ async def poll_answer_handler(answer: PollAnswer, bot: Bot, state: FSMContext):
 
     if answer.option_ids[0] == data["correct_option_id"]:
         control.setGroupStudentBalance(group_student.id, group_student.balance + 0.5)
-        await bot.send_message(answer.user.id, "<b>Правильна віпдовідь</b>\nМолодець! Твій баланс збільшено на 0.5.")
+        await bot.send_message(answer.user.id, "<b>Правильна віпдовідь</b>\nМолодець! Твій баланс збільшено на 0.5⭐")
     else:
         await bot.send_message(answer.user.id, "<b>Неправильна відповідь</b>\nНе засмучуйся! Завтра можна буде повторити спробу :)")
 
@@ -213,6 +223,17 @@ async def login_group_code_handler(message: Message, state: FSMContext):
 
     await state.clear()
     await message.answer(f"Вітаю, <b>{group_student.student_name}</b>\nТебе авторизовано в групі <b>{group.room} {group.day} {group.time}:00 {group.course.name}</b>", reply_markup=menuButtons.as_markup())
+
+
+@dp.message(Command("toggle_notification"))
+async def toogle_notify_handler(message: Message):
+    student = control.getStudent(message.chat.username)    
+
+    if not student:
+        return
+
+    control.setStudentNotification(student.username, not student.notify)    
+    await message.answer(f"<b>Нагадування {"ввімкнено" if not student.notify else "вимкнено"}</b>")
 
 
 @dp.message(Command("menu"))
@@ -275,7 +296,7 @@ async def message_handler(message: Message, state: FSMContext):
 
             reply_text = "Твій баланс:\n"
             for group, balance in student_balances:
-                reply_text += f"{group.room} {group.day} {group.time} {group.course.name} - {balance}\n"
+                reply_text += f"{group.room} {group.day} {group.time} {group.course.name} - {balance}⭐\n"
 
             await message.answer(reply_text)
 
